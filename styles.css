@@ -79,32 +79,29 @@ button {
   white-space: nowrap;
 }
 
-.offline-pill {
+.map-mode-control {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 70px;
-  justify-content: flex-end;
-  font-size: 0.78rem;
-  font-weight: 650;
+  justify-self: end;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.status-dot {
-  width: 16px;
-  height: 16px;
-  border: 2px solid currentColor;
-  border-radius: 50%;
+.map-mode-button {
+  min-width: 48px;
+  height: 28px;
+  padding: 0 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 750;
+  line-height: 1;
+  background: transparent;
 }
 
-.status-dot::after {
-  display: block;
-  width: 7px;
-  height: 4px;
-  margin: 3px 0 0 3px;
-  border-bottom: 2px solid currentColor;
-  border-left: 2px solid currentColor;
-  content: "";
-  transform: rotate(-45deg);
+.map-mode-button.is-active {
+  color: #173f25;
+  background: #fff;
 }
 
 .map-wrap {

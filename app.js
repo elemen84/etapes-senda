@@ -4,10 +4,12 @@ const TILE_CONFIG = {
   localPng: "tiles/etapa-1/{z}/{x}/{y}.png",
   localJpg: "tiles/etapa-1/{z}/{x}/{y}.jpg",
   fallback: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+  transparentTile: "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",
   attribution:
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
 };
 
+const MAP_MODE_STORAGE_KEY = "camille-stage-1-map-mode";
 const ROUTE_COLOR = "#ff850b";
 const SELECTED_COLOR = "#3c8528";
 const PROFILE_PADDING = { top: 8, right: 4, bottom: 14, left: 4 };
@@ -26,10 +28,14 @@ let profileSvg;
 let profileBox = { width: 0, height: 0 };
 let isProfileExpanded = true;
 let statusTimer = null;
+let activeTileLayer = null;
+let activeMapMode = null;
+let tileProbePoints = [];
 
 const els = {
   appShell: document.querySelector("#appShell"),
-  offlineStatus: document.querySelector("#offlineStatus span:last-child"),
+  onlineModeButton: document.querySelector("#onlineModeButton"),
+  offlineModeButton: document.querySelector("#offlineModeButton"),
   geoStatus: document.querySelector("#geoStatus"),
   locateButton: document.querySelector("#locateButton"),
   profilePanel: document.querySelector("#profilePanel"),
@@ -52,9 +58,11 @@ async function init() {
 
   const routePoints = await loadGpxPoints(GPX_URL);
   processedProfile = buildProcessedProfile(routePoints);
+  tileProbePoints = processedProfile;
 
   drawRoute(routePoints);
-  await configureTiles(processedProfile);
+  setupMapModeSelector();
+  await configureTiles(tileProbePoints);
   fitRoute();
   drawProfile();
   updateSelection(Math.floor(processedProfile.length / 2), { panMap: false });
@@ -78,25 +86,124 @@ function createMap() {
 }
 
 async function configureTiles(points) {
-  const fallbackLayer = L.tileLayer(TILE_CONFIG.fallback, {
-    maxZoom: 17,
-    attribution: TILE_CONFIG.attribution,
-  }).addTo(map);
+  const preference = getSavedMapModePreference();
+  const onlineAvailable = await detectOnlineTileAvailability(points);
 
-  const localTemplate = await detectLocalTileTemplate(points);
-  if (!localTemplate) {
-    els.offlineStatus.textContent = "Online";
+  if (preference === "offline") {
+    if (await activateOfflineTiles(points)) return;
+    showStatus("Mapa offline no disponible.");
+    if (onlineAvailable) {
+      activateOnlineTiles();
+    } else {
+      clearTileLayer();
+    }
     return;
   }
 
-  L.tileLayer(localTemplate, {
-    maxZoom: 17,
-    minZoom: 10,
-    attribution: "Tiles locals Etapa 1",
-    errorTileUrl: "",
-  }).addTo(map);
-  map.removeLayer(fallbackLayer);
-  els.offlineStatus.textContent = "Offline";
+  if (preference === "online") {
+    if (onlineAvailable) {
+      activateOnlineTiles();
+      return;
+    }
+    showStatus("Sense connexió. Mostrant mapa offline.");
+    if (!(await activateOfflineTiles(points))) {
+      clearTileLayer();
+    }
+    return;
+  }
+
+  if (onlineAvailable) {
+    activateOnlineTiles();
+    return;
+  }
+
+  showStatus("Sense connexió. Mostrant mapa offline.");
+  if (!(await activateOfflineTiles(points))) {
+    showStatus("Mapa offline no disponible.");
+    clearTileLayer();
+  }
+}
+
+function setupMapModeSelector() {
+  els.onlineModeButton.addEventListener("click", () => {
+    saveMapModePreference("online");
+    configureTiles(tileProbePoints);
+  });
+
+  els.offlineModeButton.addEventListener("click", () => {
+    saveMapModePreference("offline");
+    configureTiles(tileProbePoints);
+  });
+}
+
+function activateOnlineTiles() {
+  setActiveTileLayer(
+    L.tileLayer(TILE_CONFIG.fallback, {
+      maxZoom: 17,
+      attribution: TILE_CONFIG.attribution,
+    }),
+    "online",
+  );
+}
+
+async function activateOfflineTiles(points) {
+  const localTemplate = await detectLocalTileTemplate(points);
+  if (!localTemplate) return false;
+
+  setActiveTileLayer(
+    L.tileLayer(localTemplate, {
+      maxZoom: 17,
+      minZoom: 10,
+      minNativeZoom: 12,
+      maxNativeZoom: 16,
+      attribution: "Tiles locals Etapa 1",
+      errorTileUrl: TILE_CONFIG.transparentTile,
+    }),
+    "offline",
+  );
+  return true;
+}
+
+function setActiveTileLayer(layer, mode) {
+  clearTileLayer();
+  activeTileLayer = layer.addTo(map);
+  activeMapMode = mode;
+  updateMapModeSelector();
+}
+
+function clearTileLayer() {
+  if (activeTileLayer) {
+    map.removeLayer(activeTileLayer);
+  }
+  activeTileLayer = null;
+  activeMapMode = null;
+  updateMapModeSelector();
+}
+
+function updateMapModeSelector() {
+  els.onlineModeButton.classList.toggle("is-active", activeMapMode === "online");
+  els.offlineModeButton.classList.toggle("is-active", activeMapMode === "offline");
+  els.onlineModeButton.setAttribute("aria-pressed", String(activeMapMode === "online"));
+  els.offlineModeButton.setAttribute("aria-pressed", String(activeMapMode === "offline"));
+}
+
+function getSavedMapModePreference() {
+  const value = localStorage.getItem(MAP_MODE_STORAGE_KEY);
+  return value === "online" || value === "offline" ? value : null;
+}
+
+function saveMapModePreference(mode) {
+  localStorage.setItem(MAP_MODE_STORAGE_KEY, mode);
+}
+
+async function detectOnlineTileAvailability(points) {
+  if (!navigator.onLine) return false;
+
+  const center = points[Math.floor(points.length / 2)];
+  const probeZoom = 14;
+  const tile = latLonToTile(center.lat, center.lon, probeZoom);
+  const url = buildTileUrl(TILE_CONFIG.fallback, tile, probeZoom);
+  return imageExists(url);
 }
 
 async function detectLocalTileTemplate(points) {
@@ -118,11 +225,31 @@ async function detectLocalTileTemplate(points) {
   return null;
 }
 
+function buildTileUrl(template, tile, zoom) {
+  return template
+    .replace("{s}", "a")
+    .replace("{z}", zoom)
+    .replace("{x}", tile.x)
+    .replace("{y}", tile.y);
+}
+
 function imageExists(url) {
   return new Promise((resolve) => {
     const image = new Image();
-    image.onload = () => resolve(true);
-    image.onerror = () => resolve(false);
+    let settled = false;
+    const finish = (exists) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      resolve(exists);
+    };
+    const timeout = window.setTimeout(() => finish(false), 3500);
+    image.onload = () => {
+      finish(true);
+    };
+    image.onerror = () => {
+      finish(false);
+    };
     image.src = `${url}?probe=${Date.now()}`;
   });
 }
