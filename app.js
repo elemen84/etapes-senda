@@ -1,0 +1,566 @@
+const GPX_URL = "gpx/etapa-1-somport-arlet.gpx";
+
+const TILE_CONFIG = {
+  localPng: "tiles/etapa-1/{z}/{x}/{y}.png",
+  localJpg: "tiles/etapa-1/{z}/{x}/{y}.jpg",
+  fallback: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+  attribution:
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
+};
+
+const ROUTE_COLOR = "#ff850b";
+const SELECTED_COLOR = "#3c8528";
+const PROFILE_PADDING = { top: 8, right: 4, bottom: 14, left: 4 };
+const RESAMPLE_STEP_KM = 0.05;
+const SMOOTHING_WINDOW = 9;
+
+let map;
+let routeLayer;
+let selectedMarker;
+let userMarker;
+let userAccuracy;
+let latestUserLatLng = null;
+let processedProfile = [];
+let selectedIndex = 0;
+let profileSvg;
+let profileBox = { width: 0, height: 0 };
+let isProfileExpanded = true;
+let statusTimer = null;
+
+const els = {
+  appShell: document.querySelector("#appShell"),
+  offlineStatus: document.querySelector("#offlineStatus span:last-child"),
+  geoStatus: document.querySelector("#geoStatus"),
+  locateButton: document.querySelector("#locateButton"),
+  profilePanel: document.querySelector("#profilePanel"),
+  sheetHandle: document.querySelector("#sheetHandle"),
+  selectedKm: document.querySelector("#selectedKm"),
+  selectedElevation: document.querySelector("#selectedElevation"),
+  cursorKm: document.querySelector("#cursorKm"),
+  totalKm: document.querySelector("#totalKm"),
+  profileInteraction: document.querySelector("#profileInteraction"),
+};
+
+init().catch((error) => {
+  showStatus("No s'ha pogut carregar la ruta GPX.");
+  console.error(error);
+});
+
+async function init() {
+  profileSvg = document.querySelector("#profileSvg");
+  map = createMap();
+
+  const routePoints = await loadGpxPoints(GPX_URL);
+  processedProfile = buildProcessedProfile(routePoints);
+
+  drawRoute(routePoints);
+  await configureTiles(processedProfile);
+  fitRoute();
+  drawProfile();
+  updateSelection(Math.floor(processedProfile.length / 2), { panMap: false });
+  setupBottomSheet();
+  setupProfileInteraction();
+  setupGeolocation();
+
+  window.addEventListener("resize", () => {
+    if (!isProfileExpanded) return;
+    drawProfile();
+    updateSelection(selectedIndex, { panMap: false });
+  });
+}
+
+function createMap() {
+  return L.map("map", {
+    zoomControl: true,
+    attributionControl: true,
+    preferCanvas: true,
+  });
+}
+
+async function configureTiles(points) {
+  const fallbackLayer = L.tileLayer(TILE_CONFIG.fallback, {
+    maxZoom: 17,
+    attribution: TILE_CONFIG.attribution,
+  }).addTo(map);
+
+  const localTemplate = await detectLocalTileTemplate(points);
+  if (!localTemplate) {
+    els.offlineStatus.textContent = "Online";
+    return;
+  }
+
+  L.tileLayer(localTemplate, {
+    maxZoom: 17,
+    minZoom: 10,
+    attribution: "Tiles locals Etapa 1",
+    errorTileUrl: "",
+  }).addTo(map);
+  map.removeLayer(fallbackLayer);
+  els.offlineStatus.textContent = "Offline";
+}
+
+async function detectLocalTileTemplate(points) {
+  const center = points[Math.floor(points.length / 2)];
+  const probeZoom = 14;
+  const tile = latLonToTile(center.lat, center.lon, probeZoom);
+  const candidates = [TILE_CONFIG.localPng, TILE_CONFIG.localJpg];
+
+  for (const template of candidates) {
+    const url = template
+      .replace("{z}", probeZoom)
+      .replace("{x}", tile.x)
+      .replace("{y}", tile.y);
+    if (await imageExists(url)) {
+      return template;
+    }
+  }
+
+  return null;
+}
+
+function imageExists(url) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(true);
+    image.onerror = () => resolve(false);
+    image.src = `${url}?probe=${Date.now()}`;
+  });
+}
+
+function latLonToTile(lat, lon, zoom) {
+  const latRad = (lat * Math.PI) / 180;
+  const n = 2 ** zoom;
+  return {
+    x: Math.floor(((lon + 180) / 360) * n),
+    y: Math.floor(
+      ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n,
+    ),
+  };
+}
+
+async function loadGpxPoints(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`GPX fetch failed: ${response.status}`);
+  }
+
+  const xml = await response.text();
+  const doc = new DOMParser().parseFromString(xml, "application/xml");
+  const trackPoints = [...doc.querySelectorAll("trkpt")];
+
+  return trackPoints
+    .map((point) => ({
+      lat: Number(point.getAttribute("lat")),
+      lon: Number(point.getAttribute("lon")),
+      elevation_m: Number(point.querySelector("ele")?.textContent ?? 0),
+    }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lon));
+}
+
+function buildProcessedProfile(points) {
+  const withDistance = [];
+  let cumulativeKm = 0;
+
+  points.forEach((point, index) => {
+    if (index > 0) {
+      cumulativeKm += haversineKm(points[index - 1], point);
+    }
+    withDistance.push({ ...point, distance_km: cumulativeKm });
+  });
+
+  const resampled = resampleByDistance(withDistance, RESAMPLE_STEP_KM);
+  return smoothElevation(resampled, SMOOTHING_WINDOW);
+}
+
+function resampleByDistance(points, stepKm) {
+  const totalKm = points[points.length - 1].distance_km;
+  const result = [];
+  let sourceIndex = 1;
+
+  for (let km = 0; km <= totalKm; km += stepKm) {
+    while (sourceIndex < points.length - 1 && points[sourceIndex].distance_km < km) {
+      sourceIndex += 1;
+    }
+
+    const previous = points[sourceIndex - 1];
+    const next = points[sourceIndex];
+    const span = Math.max(next.distance_km - previous.distance_km, 0.000001);
+    const ratio = (km - previous.distance_km) / span;
+
+    result.push({
+      lat: interpolate(previous.lat, next.lat, ratio),
+      lon: interpolate(previous.lon, next.lon, ratio),
+      distance_km: km,
+      elevation_m: interpolate(previous.elevation_m, next.elevation_m, ratio),
+    });
+  }
+
+  const last = points[points.length - 1];
+  result.push({
+    lat: last.lat,
+    lon: last.lon,
+    distance_km: last.distance_km,
+    elevation_m: last.elevation_m,
+  });
+
+  return result;
+}
+
+function smoothElevation(points, windowSize) {
+  const half = Math.floor(windowSize / 2);
+  return points.map((point, index) => {
+    const start = Math.max(0, index - half);
+    const end = Math.min(points.length - 1, index + half);
+    let total = 0;
+    let count = 0;
+
+    for (let i = start; i <= end; i += 1) {
+      total += points[i].elevation_m;
+      count += 1;
+    }
+
+    return {
+      ...point,
+      smoothed_elevation_m: total / count,
+    };
+  });
+}
+
+function haversineKm(a, b) {
+  const radiusKm = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * radiusKm * Math.asin(Math.sqrt(h));
+}
+
+function toRad(value) {
+  return (value * Math.PI) / 180;
+}
+
+function interpolate(a, b, ratio) {
+  return a + (b - a) * ratio;
+}
+
+function drawRoute(points) {
+  const latLngs = points.map((point) => [point.lat, point.lon]);
+
+  routeLayer = L.polyline(latLngs, {
+    color: ROUTE_COLOR,
+    weight: 6,
+    opacity: 0.96,
+    lineCap: "round",
+    lineJoin: "round",
+  }).addTo(map);
+
+  const start = points[0];
+  const finish = points[points.length - 1];
+  L.marker([start.lat, start.lon], {
+    icon: L.divIcon({ className: "start-marker", iconSize: [28, 28], iconAnchor: [14, 14] }),
+    title: "Somport",
+  }).addTo(map);
+  L.marker([finish.lat, finish.lon], {
+    icon: L.divIcon({ className: "finish-marker", iconSize: [28, 28], iconAnchor: [14, 14] }),
+    title: "Arlet",
+  }).addTo(map);
+
+  selectedMarker = L.marker([start.lat, start.lon], {
+    icon: L.divIcon({ className: "selected-marker", iconSize: [18, 18], iconAnchor: [9, 9] }),
+    interactive: false,
+  }).addTo(map);
+}
+
+function fitRoute() {
+  map.fitBounds(routeLayer.getBounds(), {
+    paddingTopLeft: [24, 24],
+    paddingBottomRight: [24, 120],
+    maxZoom: 14,
+  });
+}
+
+function drawProfile() {
+  const rect = els.profileInteraction.getBoundingClientRect();
+  profileBox = {
+    width: Math.max(280, Math.round(rect.width)),
+    height: Math.max(72, Math.round(rect.height)),
+  };
+
+  profileSvg.setAttribute("viewBox", `0 0 ${profileBox.width} ${profileBox.height}`);
+  profileSvg.innerHTML = "";
+
+  const minElevation = Math.floor(Math.min(...processedProfile.map((p) => p.smoothed_elevation_m)) / 100) * 100;
+  const maxElevation = Math.ceil(Math.max(...processedProfile.map((p) => p.smoothed_elevation_m)) / 100) * 100;
+  const areaPath = buildProfilePath(minElevation, maxElevation, true);
+  const linePath = buildProfilePath(minElevation, maxElevation, false);
+
+  const defs = svgElement("defs");
+  const gradient = svgElement("linearGradient", {
+    id: "profileFill",
+    x1: "0",
+    y1: "0",
+    x2: "0",
+    y2: "1",
+  });
+  gradient.append(
+    svgElement("stop", { offset: "0%", "stop-color": ROUTE_COLOR, "stop-opacity": "0.35" }),
+    svgElement("stop", { offset: "100%", "stop-color": ROUTE_COLOR, "stop-opacity": "0.03" }),
+  );
+  defs.append(gradient);
+
+  const grid = svgElement("g", { class: "grid" });
+  [0.25, 0.58, 0.92].forEach((ratio) => {
+    const y = PROFILE_PADDING.top + ratio * (profileBox.height - PROFILE_PADDING.top - PROFILE_PADDING.bottom);
+    grid.append(svgElement("line", {
+      x1: PROFILE_PADDING.left,
+      y1: y,
+      x2: profileBox.width - PROFILE_PADDING.right,
+      y2: y,
+      stroke: "#d8ddd2",
+      "stroke-dasharray": "4 5",
+      "stroke-width": "1",
+    }));
+  });
+
+  profileSvg.append(
+    defs,
+    grid,
+    svgElement("path", { d: areaPath, fill: "url(#profileFill)" }),
+    svgElement("path", {
+      d: linePath,
+      fill: "none",
+      stroke: ROUTE_COLOR,
+      "stroke-width": "3.5",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+    }),
+    svgElement("line", {
+      id: "profileCursor",
+      y1: PROFILE_PADDING.top,
+      y2: profileBox.height - PROFILE_PADDING.bottom,
+      stroke: SELECTED_COLOR,
+      "stroke-width": "2.5",
+    }),
+    svgElement("circle", {
+      id: "profileCursorDot",
+      r: "8",
+      fill: "#ffffff",
+      stroke: SELECTED_COLOR,
+      "stroke-width": "4",
+    }),
+  );
+}
+
+function buildProfilePath(minElevation, maxElevation, closeArea) {
+  const totalKm = processedProfile[processedProfile.length - 1].distance_km;
+  const usableWidth = profileBox.width - PROFILE_PADDING.left - PROFILE_PADDING.right;
+  const usableHeight = profileBox.height - PROFILE_PADDING.top - PROFILE_PADDING.bottom;
+
+  const commands = processedProfile.map((point, index) => {
+    const x = PROFILE_PADDING.left + (point.distance_km / totalKm) * usableWidth;
+    const y =
+      PROFILE_PADDING.top +
+      (1 - (point.smoothed_elevation_m - minElevation) / (maxElevation - minElevation)) * usableHeight;
+    return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  });
+
+  if (closeArea) {
+    commands.push(
+      `L ${profileBox.width - PROFILE_PADDING.right} ${profileBox.height - PROFILE_PADDING.bottom}`,
+      `L ${PROFILE_PADDING.left} ${profileBox.height - PROFILE_PADDING.bottom}`,
+      "Z",
+    );
+  }
+
+  return commands.join(" ");
+}
+
+function setupProfileInteraction() {
+  els.profileInteraction.addEventListener("pointerdown", (event) => {
+    els.profileInteraction.setPointerCapture(event.pointerId);
+    handleProfilePointer(event);
+  });
+  els.profileInteraction.addEventListener("pointermove", (event) => {
+    if (event.buttons !== 1 && event.pointerType !== "touch") return;
+    handleProfilePointer(event);
+  });
+}
+
+function setupBottomSheet() {
+  let startY = 0;
+  let startX = 0;
+  let gestureHandled = false;
+
+  els.sheetHandle.addEventListener("pointerdown", (event) => {
+    startY = event.clientY;
+    startX = event.clientX;
+    gestureHandled = false;
+    els.sheetHandle.setPointerCapture(event.pointerId);
+  });
+
+  els.sheetHandle.addEventListener("pointermove", (event) => {
+    const deltaY = event.clientY - startY;
+    const deltaX = event.clientX - startX;
+    if (gestureHandled || Math.abs(deltaY) < 32 || Math.abs(deltaY) < Math.abs(deltaX)) return;
+
+    gestureHandled = true;
+    setProfileExpanded(deltaY < 0);
+  });
+
+  els.sheetHandle.addEventListener("pointerup", (event) => {
+    if (gestureHandled) return;
+
+    const deltaY = event.clientY - startY;
+    const deltaX = event.clientX - startX;
+
+    if (Math.abs(deltaY) < 10 && Math.abs(deltaX) < 10) {
+      setProfileExpanded(!isProfileExpanded);
+      return;
+    }
+
+    if (deltaY > 28) {
+      setProfileExpanded(false);
+    } else if (deltaY < -28) {
+      setProfileExpanded(true);
+    }
+  });
+}
+
+function setProfileExpanded(expanded) {
+  isProfileExpanded = expanded;
+  els.appShell.classList.toggle("sheet-collapsed", !expanded);
+  els.profilePanel.classList.toggle("is-collapsed", !expanded);
+  els.sheetHandle.setAttribute("aria-expanded", String(expanded));
+
+  if (expanded) {
+    requestAnimationFrame(() => {
+      drawProfile();
+      updateSelection(selectedIndex, { panMap: false });
+    });
+  }
+}
+
+function handleProfilePointer(event) {
+  event.preventDefault();
+  const rect = els.profileInteraction.getBoundingClientRect();
+  const x = Math.min(Math.max(event.clientX - rect.left, PROFILE_PADDING.left), rect.width - PROFILE_PADDING.right);
+  const ratio = (x - PROFILE_PADDING.left) / (rect.width - PROFILE_PADDING.left - PROFILE_PADDING.right);
+  const index = Math.round(ratio * (processedProfile.length - 1));
+  updateSelection(index, { panMap: true });
+}
+
+function updateSelection(index, options = { panMap: true }) {
+  selectedIndex = Math.min(Math.max(index, 0), processedProfile.length - 1);
+  const point = processedProfile[selectedIndex];
+
+  els.selectedKm.textContent = formatKm(point.distance_km);
+  els.cursorKm.textContent = formatKm(point.distance_km);
+  els.selectedElevation.textContent = `${Math.round(point.smoothed_elevation_m).toLocaleString("ca-ES")} m`;
+  els.totalKm.textContent = formatKm(processedProfile[processedProfile.length - 1].distance_km);
+
+  selectedMarker.setLatLng([point.lat, point.lon]);
+  if (options.panMap) {
+    map.panTo([point.lat, point.lon], { animate: true, duration: 0.3 });
+  }
+
+  updateProfileCursor(point);
+}
+
+function updateProfileCursor(point) {
+  const minElevation = Math.floor(Math.min(...processedProfile.map((p) => p.smoothed_elevation_m)) / 100) * 100;
+  const maxElevation = Math.ceil(Math.max(...processedProfile.map((p) => p.smoothed_elevation_m)) / 100) * 100;
+  const totalKm = processedProfile[processedProfile.length - 1].distance_km;
+  const usableWidth = profileBox.width - PROFILE_PADDING.left - PROFILE_PADDING.right;
+  const usableHeight = profileBox.height - PROFILE_PADDING.top - PROFILE_PADDING.bottom;
+  const x = PROFILE_PADDING.left + (point.distance_km / totalKm) * usableWidth;
+  const y =
+    PROFILE_PADDING.top +
+    (1 - (point.smoothed_elevation_m - minElevation) / (maxElevation - minElevation)) * usableHeight;
+
+  const cursor = profileSvg.querySelector("#profileCursor");
+  const dot = profileSvg.querySelector("#profileCursorDot");
+  if (!cursor || !dot) return;
+  cursor.setAttribute("x1", x);
+  cursor.setAttribute("x2", x);
+  dot.setAttribute("cx", x);
+  dot.setAttribute("cy", y);
+}
+
+function setupGeolocation() {
+  if (!("geolocation" in navigator)) {
+    showStatus("Ubicacio no disponible");
+    return;
+  }
+
+  navigator.geolocation.watchPosition(
+    (position) => {
+      latestUserLatLng = [position.coords.latitude, position.coords.longitude];
+      drawUserLocation(latestUserLatLng, position.coords.accuracy);
+      hideStatus();
+    },
+    (error) => {
+      const denied = error && error.code === error.PERMISSION_DENIED;
+      showStatus(denied ? "Permis d'ubicacio denegat" : "Ubicacio no disponible");
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 10000,
+      timeout: 12000,
+    },
+  );
+
+  els.locateButton.addEventListener("click", () => {
+    if (latestUserLatLng) {
+      map.setView(latestUserLatLng, Math.max(map.getZoom(), 15), { animate: true });
+    } else {
+      showStatus("Buscant GPS...");
+    }
+  });
+}
+
+function drawUserLocation(latLng, accuracy) {
+  if (!userMarker) {
+    userMarker = L.marker(latLng, {
+      icon: L.divIcon({ className: "user-dot", iconSize: [22, 22], iconAnchor: [11, 11] }),
+      interactive: false,
+    }).addTo(map);
+    userAccuracy = L.circle(latLng, {
+      radius: accuracy || 20,
+      color: "#1d9bf0",
+      fillColor: "#1d9bf0",
+      fillOpacity: 0.12,
+      weight: 1,
+      interactive: false,
+    }).addTo(map);
+    return;
+  }
+
+  userMarker.setLatLng(latLng);
+  userAccuracy.setLatLng(latLng);
+  userAccuracy.setRadius(accuracy || 20);
+}
+
+function showStatus(message) {
+  window.clearTimeout(statusTimer);
+  els.geoStatus.textContent = message;
+  els.geoStatus.hidden = false;
+  statusTimer = window.setTimeout(hideStatus, 2600);
+}
+
+function hideStatus() {
+  window.clearTimeout(statusTimer);
+  els.geoStatus.hidden = true;
+}
+
+function svgElement(name, attributes = {}) {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+  Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+  return element;
+}
+
+function formatKm(value) {
+  return `${value.toLocaleString("ca-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+}
