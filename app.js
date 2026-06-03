@@ -464,13 +464,6 @@ function drawProfile() {
       "stroke-linecap": "round",
       "stroke-linejoin": "round",
     }),
-    svgElement("line", {
-      id: "profileCursor",
-      y1: PROFILE_PADDING.top,
-      y2: profileBox.height - PROFILE_PADDING.bottom,
-      stroke: SELECTED_COLOR,
-      "stroke-width": "2.5",
-    }),
     svgElement("circle", {
       id: "profileCursorDot",
       r: "8",
@@ -607,11 +600,8 @@ function updateProfileCursor(point) {
     PROFILE_PADDING.top +
     (1 - (point.smoothed_elevation_m - minElevation) / (maxElevation - minElevation)) * usableHeight;
 
-  const cursor = profileSvg.querySelector("#profileCursor");
   const dot = profileSvg.querySelector("#profileCursorDot");
-  if (!cursor || !dot) return;
-  cursor.setAttribute("x1", x);
-  cursor.setAttribute("x2", x);
+  if (!dot) return;
   dot.setAttribute("cx", x);
   dot.setAttribute("cy", y);
 }
