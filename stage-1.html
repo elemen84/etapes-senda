@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Etapa 1 &middot; Somport - Arlet</title>
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" id="appShell">
+      <header class="stage-header">
+        <a class="back-button" href="index.html" aria-label="Tornar a inici">&lsaquo;</a>
+        <h1>ETAPA 1 SOMPORT - ARLET</h1>
+        <div class="map-mode-control" id="mapModeControl" role="group" aria-label="Mode de mapa">
+          <button class="map-mode-button" id="onlineModeButton" type="button" data-mode="online">Online</button>
+          <button class="map-mode-button" id="offlineModeButton" type="button" data-mode="offline">Offline</button>
+        </div>
+      </header>
+
+      <section class="map-wrap" aria-label="Mapa de l'etapa 1">
+        <div id="map" class="map"></div>
+        <div class="map-status" id="geoStatus" hidden></div>
+        <button class="locate-button" id="locateButton" type="button" aria-label="Centrar en la meva ubicacio">
+          <span aria-hidden="true"></span>
+        </button>
+      </section>
+
+      <section class="profile-panel" id="profilePanel" aria-label="Perfil d'altitud">
+        <button class="panel-handle" id="sheetHandle" type="button" aria-label="Amagar o mostrar el perfil"></button>
+        <div class="selected-stats">
+          <div class="stat-chip">
+            <span class="pin-icon" aria-hidden="true"></span>
+            <strong id="selectedKm">0,0 km</strong>
+          </div>
+          <div class="stat-chip">
+            <span class="mountain-icon" aria-hidden="true"></span>
+            <strong id="selectedElevation">0 m</strong>
+          </div>
+        </div>
+        <div class="profile-chart" id="profileInteraction">
+          <svg id="profileSvg" role="img" aria-label="Perfil d'altitud de Somport a Arlet"></svg>
+        </div>
+        <div class="profile-axis">
+          <span>0 km</span>
+          <strong id="cursorKm">0,0 km</strong>
+          <span id="totalKm">0,0 km</span>
+        </div>
+      </section>
+    </main>
+
+    <script src="vendor/leaflet/leaflet.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

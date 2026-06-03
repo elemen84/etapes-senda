@@ -3,53 +3,193 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Etapa 1 · Somport - Arlet</title>
-    <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+    <title>Senda de Camille</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <main class="app-shell" id="appShell">
-      <header class="stage-header">
-        <button class="back-button" aria-label="Tornar enrere">‹</button>
-        <h1>ETAPA 1 SOMPORT - ARLET</h1>
-        <div class="map-mode-control" id="mapModeControl" role="group" aria-label="Mode de mapa">
-          <button class="map-mode-button" id="onlineModeButton" type="button" data-mode="online">Online</button>
-          <button class="map-mode-button" id="offlineModeButton" type="button" data-mode="offline">Offline</button>
-        </div>
+  <body class="home-page">
+    <main class="home-shell" aria-label="Senda de Camille">
+      <header class="home-header">
+        <a class="home-brand" href="index.html" aria-label="Senda de Camille">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 32" focusable="false">
+              <path d="M3 28 18 9l9 12 8-10 26 17" />
+              <path d="M17 9 23 17l4-5M35 11l7 9 4-5" />
+            </svg>
+          </span>
+          <span>Senda de Camille</span>
+        </a>
       </header>
 
-      <section class="map-wrap" aria-label="Mapa de l'etapa 1">
-        <div id="map" class="map"></div>
-        <div class="map-status" id="geoStatus" hidden></div>
-        <button class="locate-button" id="locateButton" type="button" aria-label="Centrar en la meva ubicacio">
-          <span aria-hidden="true"></span>
-        </button>
+      <section class="home-hero" aria-labelledby="homeTitle">
+        <div class="home-hero-copy">
+          <h1 id="homeTitle">Senda de Camille</h1>
+          <p class="home-route-meta">5 etapes &middot; 74,6 km &middot; +4.373 m</p>
+          <p class="home-subtitle">Ruta circular pels Pirineus occidentals</p>
+          <div class="hero-divider" aria-hidden="true">
+            <span></span>
+            <svg viewBox="0 0 64 32" focusable="false">
+              <path d="M3 28 18 9l9 12 8-10 26 17" />
+              <path d="M17 9 23 17l4-5M35 11l7 9 4-5" />
+            </svg>
+            <span></span>
+          </div>
+        </div>
+        <img
+          class="hero-image"
+          src="assets/hero-mountain-placeholder.png"
+          alt=""
+          aria-hidden="true"
+        />
       </section>
 
-      <section class="profile-panel" id="profilePanel" aria-label="Perfil d'altitud">
-        <button class="panel-handle" id="sheetHandle" type="button" aria-label="Amagar o mostrar el perfil"></button>
-        <div class="selected-stats">
-          <div class="stat-chip">
-            <span class="pin-icon" aria-hidden="true"></span>
-            <strong id="selectedKm">0,0 km</strong>
+      <section class="stage-list" aria-label="Etapes de la ruta">
+        <article class="route-card is-available">
+          <div class="stage-badge" aria-label="Etapa 1">
+            <span>Etapa</span>
+            <strong>1</strong>
+            <svg viewBox="0 0 64 32" aria-hidden="true" focusable="false">
+              <path d="M3 28 18 9l9 12 8-10 26 17" />
+              <path d="M17 9 23 17l4-5M35 11l7 9 4-5" />
+            </svg>
           </div>
-          <div class="stat-chip">
-            <span class="mountain-icon" aria-hidden="true"></span>
-            <strong id="selectedElevation">0 m</strong>
+          <div class="route-card-content">
+            <a class="route-card-arrow" href="stage-1.html" aria-label="Veure etapa 1">&rsaquo;</a>
+            <h2>Somport &rarr;<br />Refugi d&rsquo;Arlet</h2>
+            <p class="route-meta" aria-label="18,6 quilometres, 1.050 metres de desnivell positiu, 6 hores">
+              <span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.3 7-12a7 7 0 0 0-14 0c0 5.7 7 12 7 12Z" /><circle cx="12" cy="9" r="2.3" /></svg>
+                18,6 km
+              </span>
+              <span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 19 6.5-10 4 5.5 2-3L21 19Z" /><path d="m9.5 9 2.2 3.1 1.4-1.9" /></svg>
+                +1.050 m
+              </span>
+              <span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3.5 2" /></svg>
+                6 h
+              </span>
+            </p>
+            <div class="card-actions">
+              <a class="primary-action" href="stage-1.html">Veure etapa</a>
+              <button class="secondary-action" type="button" data-video-open>
+                <span class="play-icon" aria-hidden="true"></span>
+                V&iacute;deo
+              </button>
+            </div>
           </div>
-        </div>
-        <div class="profile-chart" id="profileInteraction">
-          <svg id="profileSvg" role="img" aria-label="Perfil d'altitud de Somport a Arlet"></svg>
-        </div>
-        <div class="profile-axis">
-          <span>0 km</span>
-          <strong id="cursorKm">0,0 km</strong>
-          <span id="totalKm">0,0 km</span>
-        </div>
+        </article>
+
+        <article class="route-card is-disabled" aria-disabled="true">
+          <div class="stage-badge" aria-label="Etapa 2">
+            <span>Etapa</span>
+            <strong>2</strong>
+            <svg viewBox="0 0 64 32" aria-hidden="true" focusable="false">
+              <path d="M3 28 18 9l9 12 8-10 26 17" />
+              <path d="M17 9 23 17l4-5M35 11l7 9 4-5" />
+            </svg>
+          </div>
+          <div class="route-card-content">
+            <span class="route-card-arrow" aria-hidden="true">&rsaquo;</span>
+            <h2>Refugi d&rsquo;Arlet &rarr;<br />Selva de Oza</h2>
+            <p class="route-meta" aria-label="15,2 quilometres, 820 metres de desnivell positiu, 5 hores i 30 minuts">
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.3 7-12a7 7 0 0 0-14 0c0 5.7 7 12 7 12Z" /><circle cx="12" cy="9" r="2.3" /></svg>15,2 km</span>
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 19 6.5-10 4 5.5 2-3L21 19Z" /><path d="m9.5 9 2.2 3.1 1.4-1.9" /></svg>+820 m</span>
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3.5 2" /></svg>5 h 30 min</span>
+            </p>
+            <div class="card-actions">
+              <button class="primary-action" type="button" disabled>Veure etapa</button>
+              <button class="secondary-action" type="button" disabled><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="route-card is-disabled" aria-disabled="true">
+          <div class="stage-badge" aria-label="Etapa 3">
+            <span>Etapa</span>
+            <strong>3</strong>
+            <svg viewBox="0 0 64 32" aria-hidden="true" focusable="false">
+              <path d="M3 28 18 9l9 12 8-10 26 17" />
+              <path d="M17 9 23 17l4-5M35 11l7 9 4-5" />
+            </svg>
+          </div>
+          <div class="route-card-content">
+            <span class="route-card-arrow" aria-hidden="true">&rsaquo;</span>
+            <h2>Selva de Oza &rarr;<br />Refugi de Gabardito</h2>
+            <p class="route-meta" aria-label="13,8 quilometres, 910 metres de desnivell positiu, 5 hores i 45 minuts">
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.3 7-12a7 7 0 0 0-14 0c0 5.7 7 12 7 12Z" /><circle cx="12" cy="9" r="2.3" /></svg>13,8 km</span>
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 19 6.5-10 4 5.5 2-3L21 19Z" /><path d="m9.5 9 2.2 3.1 1.4-1.9" /></svg>+910 m</span>
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3.5 2" /></svg>5 h 45 min</span>
+            </p>
+            <div class="card-actions">
+              <button class="primary-action" type="button" disabled>Veure etapa</button>
+              <button class="secondary-action" type="button" disabled><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="route-card is-disabled" aria-disabled="true">
+          <div class="stage-badge" aria-label="Etapa 4">
+            <span>Etapa</span>
+            <strong>4</strong>
+            <svg viewBox="0 0 64 32" aria-hidden="true" focusable="false">
+              <path d="M3 28 18 9l9 12 8-10 26 17" />
+              <path d="M17 9 23 17l4-5M35 11l7 9 4-5" />
+            </svg>
+          </div>
+          <div class="route-card-content">
+            <span class="route-card-arrow" aria-hidden="true">&rsaquo;</span>
+            <h2>Refugi de Gabardito &rarr;<br />Refugi de Lizara</h2>
+            <p class="route-meta" aria-label="14,4 quilometres, 760 metres de desnivell positiu, 5 hores i 15 minuts">
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.3 7-12a7 7 0 0 0-14 0c0 5.7 7 12 7 12Z" /><circle cx="12" cy="9" r="2.3" /></svg>14,4 km</span>
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 19 6.5-10 4 5.5 2-3L21 19Z" /><path d="m9.5 9 2.2 3.1 1.4-1.9" /></svg>+760 m</span>
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3.5 2" /></svg>5 h 15 min</span>
+            </p>
+            <div class="card-actions">
+              <button class="primary-action" type="button" disabled>Veure etapa</button>
+              <button class="secondary-action" type="button" disabled><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="route-card is-disabled" aria-disabled="true">
+          <div class="stage-badge" aria-label="Etapa 5">
+            <span>Etapa</span>
+            <strong>5</strong>
+            <svg viewBox="0 0 64 32" aria-hidden="true" focusable="false">
+              <path d="M3 28 18 9l9 12 8-10 26 17" />
+              <path d="M17 9 23 17l4-5M35 11l7 9 4-5" />
+            </svg>
+          </div>
+          <div class="route-card-content">
+            <span class="route-card-arrow" aria-hidden="true">&rsaquo;</span>
+            <h2>Refugi de Lizara &rarr;<br />Somport</h2>
+            <p class="route-meta" aria-label="12,6 quilometres, 833 metres de desnivell positiu, 5 hores">
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.3 7-12a7 7 0 0 0-14 0c0 5.7 7 12 7 12Z" /><circle cx="12" cy="9" r="2.3" /></svg>12,6 km</span>
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 19 6.5-10 4 5.5 2-3L21 19Z" /><path d="m9.5 9 2.2 3.1 1.4-1.9" /></svg>+833 m</span>
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3.5 2" /></svg>5 h</span>
+            </p>
+            <div class="card-actions">
+              <button class="primary-action" type="button" disabled>Veure etapa</button>
+              <button class="secondary-action" type="button" disabled><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
+            </div>
+          </div>
+        </article>
       </section>
     </main>
 
-    <script src="vendor/leaflet/leaflet.js"></script>
-    <script src="app.js"></script>
+    <div class="video-modal" id="videoModal" role="dialog" aria-modal="true" aria-labelledby="videoTitle" hidden>
+      <div class="video-backdrop" data-video-close></div>
+      <section class="video-panel">
+        <div class="video-panel-header">
+          <h2 id="videoTitle">Etapa 1 &middot; V&iacute;deo 3D</h2>
+          <button class="video-close" type="button" data-video-close aria-label="Tancar video">&times;</button>
+        </div>
+        <video id="stageVideo" controls preload="metadata">
+          <source src="videos/etapa-1-3d.mp4" type="video/mp4" />
+        </video>
+      </section>
+    </div>
+
+    <script src="home.js"></script>
   </body>
 </html>
