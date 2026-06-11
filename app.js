@@ -1,15 +1,69 @@
-const GPX_URL = "gpx/etapa-1-somport-arlet.gpx";
+const DEFAULT_STAGE_ID = "1";
+const STAGE_CONFIGS = {
+  "1": {
+    id: "1",
+    title: "Etapa 1 · Somport - Arlet",
+    heading: "ETAPA 1 SOMPORT - ARLET",
+    mapLabel: "Mapa de l'etapa 1",
+    profileLabel: "Perfil d'altitud de Somport a Arlet",
+    startName: "Somport",
+    finishName: "Arlet",
+    gpxUrl: "gpx/etapa-1-somport-arlet.gpx",
+    localTiles: ["tiles/etapa-1/{z}/{x}/{y}.png", "tiles/etapa-1/{z}/{x}/{y}.jpg"],
+  },
+  "2": {
+    id: "2",
+    title: "Etapa 2 · Arlet - Selva de Oza",
+    heading: "ETAPA 2 ARLET - SELVA DE OZA",
+    mapLabel: "Mapa de l'etapa 2",
+    profileLabel: "Perfil d'altitud d'Arlet a Selva de Oza",
+    startName: "Arlet",
+    finishName: "Selva de Oza",
+    gpxUrl: "gpx/ETAPA 2 ARLET-SELVA DE OZA TRK.gpx",
+    localTiles: [],
+  },
+  "3": {
+    id: "3",
+    title: "Etapa 3 · Selva de Oza - Gabardito",
+    heading: "ETAPA 3 SELVA DE OZA - GABARDITO",
+    mapLabel: "Mapa de l'etapa 3",
+    profileLabel: "Perfil d'altitud de Selva de Oza a Gabardito",
+    startName: "Selva de Oza",
+    finishName: "Gabardito",
+    gpxUrl: "gpx/ETAPA 3 OZA - GABARDITO TRK.gpx",
+    localTiles: [],
+  },
+  "4": {
+    id: "4",
+    title: "Etapa 4 · Gabardito - Lizara",
+    heading: "ETAPA 4 GABARDITO - LIZARA",
+    mapLabel: "Mapa de l'etapa 4",
+    profileLabel: "Perfil d'altitud de Gabardito a Lizara",
+    startName: "Gabardito",
+    finishName: "Lizara",
+    gpxUrl: "gpx/ETAPA 4 GABARDITO - LIZARA TRK.gpx",
+    localTiles: [],
+  },
+  "5": {
+    id: "5",
+    title: "Etapa 5 · Lizara - Somport",
+    heading: "ETAPA 5 LIZARA - SOMPORT",
+    mapLabel: "Mapa de l'etapa 5",
+    profileLabel: "Perfil d'altitud de Lizara a Somport",
+    startName: "Lizara",
+    finishName: "Somport",
+    gpxUrl: "gpx/ETAPA 5 LIZARA - SOMPORT TRK.gpx",
+    localTiles: [],
+  },
+};
 
 const TILE_CONFIG = {
-  localPng: "tiles/etapa-1/{z}/{x}/{y}.png",
-  localJpg: "tiles/etapa-1/{z}/{x}/{y}.jpg",
   fallback: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
   transparentTile: "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",
   attribution:
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
 };
 
-const MAP_MODE_STORAGE_KEY = "camille-stage-1-map-mode";
 const ROUTE_COLOR = "#ff850b";
 const SELECTED_COLOR = "#3c8528";
 const SEGMENT_COLOR = "#173f25";
@@ -62,6 +116,9 @@ const els = {
   totalKm: document.querySelector("#totalKm"),
   profileInteraction: document.querySelector("#profileInteraction"),
 };
+const currentStageId = els.appShell.dataset.stage || DEFAULT_STAGE_ID;
+const stageConfig = STAGE_CONFIGS[currentStageId] || STAGE_CONFIGS[DEFAULT_STAGE_ID];
+const mapModeStorageKey = `camille-stage-${stageConfig.id}-map-mode`;
 
 init().catch((error) => {
   showStatus("No s'ha pogut carregar la ruta GPX.");
@@ -69,10 +126,11 @@ init().catch((error) => {
 });
 
 async function init() {
+  applyStageMetadata();
   profileSvg = document.querySelector("#profileSvg");
   map = createMap();
 
-  const routePoints = await loadGpxPoints(GPX_URL);
+  const routePoints = await loadGpxPoints(stageConfig.gpxUrl);
   processedProfile = buildProcessedProfile(routePoints);
   tileProbePoints = processedProfile;
 
@@ -92,6 +150,13 @@ async function init() {
     if (!isProfileExpanded) return;
     scheduleProfileRedraw();
   });
+}
+
+function applyStageMetadata() {
+  document.title = stageConfig.title;
+  document.querySelector(".stage-header h1").textContent = stageConfig.heading;
+  document.querySelector(".map-wrap").setAttribute("aria-label", stageConfig.mapLabel);
+  document.querySelector("#profileSvg").setAttribute("aria-label", stageConfig.profileLabel);
 }
 
 function createMap() {
@@ -173,7 +238,7 @@ async function activateOfflineTiles(points) {
       minZoom: 10,
       minNativeZoom: 12,
       maxNativeZoom: 16,
-      attribution: "Tiles locals Etapa 1",
+      attribution: `Tiles locals Etapa ${stageConfig.id}`,
       errorTileUrl: TILE_CONFIG.transparentTile,
     }),
     "offline",
@@ -205,12 +270,12 @@ function updateMapModeSelector() {
 }
 
 function getSavedMapModePreference() {
-  const value = localStorage.getItem(MAP_MODE_STORAGE_KEY);
+  const value = localStorage.getItem(mapModeStorageKey);
   return value === "online" || value === "offline" ? value : null;
 }
 
 function saveMapModePreference(mode) {
-  localStorage.setItem(MAP_MODE_STORAGE_KEY, mode);
+  localStorage.setItem(mapModeStorageKey, mode);
 }
 
 async function detectOnlineTileAvailability(points) {
@@ -224,10 +289,12 @@ async function detectOnlineTileAvailability(points) {
 }
 
 async function detectLocalTileTemplate(points) {
+  if (!stageConfig.localTiles.length) return null;
+
   const center = points[Math.floor(points.length / 2)];
   const probeZoom = 14;
   const tile = latLonToTile(center.lat, center.lon, probeZoom);
-  const candidates = [TILE_CONFIG.localPng, TILE_CONFIG.localJpg];
+  const candidates = stageConfig.localTiles;
 
   for (const template of candidates) {
     const url = template
@@ -283,7 +350,7 @@ function latLonToTile(lat, lon, zoom) {
 }
 
 async function loadGpxPoints(url) {
-  const response = await fetch(url);
+  const response = await fetch(encodeURI(url));
   if (!response.ok) {
     throw new Error(`GPX fetch failed: ${response.status}`);
   }
@@ -405,11 +472,11 @@ function drawRoute(points) {
   const finish = points[points.length - 1];
   L.marker([start.lat, start.lon], {
     icon: L.divIcon({ className: "start-marker", iconSize: [28, 28], iconAnchor: [14, 14] }),
-    title: "Somport",
+    title: stageConfig.startName,
   }).addTo(map);
   L.marker([finish.lat, finish.lon], {
     icon: L.divIcon({ className: "finish-marker", iconSize: [28, 28], iconAnchor: [14, 14] }),
-    title: "Arlet",
+    title: stageConfig.finishName,
   }).addTo(map);
 
   selectedMarker = L.marker([start.lat, start.lon], {
