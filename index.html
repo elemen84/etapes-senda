@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Senda de Camille</title>
-    <link rel="stylesheet" href="styles.css?v=full-hero-1" />
+    <link rel="stylesheet" href="styles.css?v=stage-videos-1" />
   </head>
   <body class="home-page">
     <main class="home-shell" aria-label="Senda de Camille">
@@ -28,7 +28,7 @@
       </section>
 
       <section class="stage-list" aria-label="Etapes de la ruta">
-        <article class="route-card is-available">
+        <article class="route-card is-available has-video">
           <div class="stage-badge" aria-label="Etapa 1">
             <span>Etapa</span>
             <strong>1</strong>
@@ -42,7 +42,7 @@
             </p>
             <div class="card-actions">
               <a class="primary-action" href="stage-1.html">Veure etapa</a>
-              <button class="secondary-action" type="button" data-video-open>
+              <button class="secondary-action" type="button" data-video-open data-video-src="videos/etapa-1-3d.mp4" data-video-title="Etapa 1 &middot; V&iacute;deo 3D">
                 <span class="play-icon" aria-hidden="true"></span>
                 V&iacute;deo
               </button>
@@ -50,7 +50,7 @@
           </div>
         </article>
 
-        <article class="route-card is-disabled" aria-disabled="true">
+        <article class="route-card is-disabled has-video" aria-disabled="true">
           <div class="stage-badge" aria-label="Etapa 2">
             <span>Etapa</span>
             <strong>2</strong>
@@ -64,12 +64,12 @@
             </p>
             <div class="card-actions">
               <button class="primary-action" type="button" disabled>Veure etapa</button>
-              <button class="secondary-action" type="button" disabled><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
+              <button class="secondary-action" type="button" data-video-open data-video-src="videos/etapa-2-3d.mp4" data-video-title="Etapa 2 &middot; V&iacute;deo 3D"><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
             </div>
           </div>
         </article>
 
-        <article class="route-card is-disabled" aria-disabled="true">
+        <article class="route-card is-disabled has-video" aria-disabled="true">
           <div class="stage-badge" aria-label="Etapa 3">
             <span>Etapa</span>
             <strong>3</strong>
@@ -83,12 +83,12 @@
             </p>
             <div class="card-actions">
               <button class="primary-action" type="button" disabled>Veure etapa</button>
-              <button class="secondary-action" type="button" disabled><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
+              <button class="secondary-action" type="button" data-video-open data-video-src="videos/etapa-3-3d.mp4" data-video-title="Etapa 3 &middot; V&iacute;deo 3D"><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
             </div>
           </div>
         </article>
 
-        <article class="route-card is-disabled" aria-disabled="true">
+        <article class="route-card is-disabled has-video" aria-disabled="true">
           <div class="stage-badge" aria-label="Etapa 4">
             <span>Etapa</span>
             <strong>4</strong>
@@ -102,12 +102,12 @@
             </p>
             <div class="card-actions">
               <button class="primary-action" type="button" disabled>Veure etapa</button>
-              <button class="secondary-action" type="button" disabled><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
+              <button class="secondary-action" type="button" data-video-open data-video-src="videos/etapa-4-3d.mp4" data-video-title="Etapa 4 &middot; V&iacute;deo 3D"><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
             </div>
           </div>
         </article>
 
-        <article class="route-card is-disabled" aria-disabled="true">
+        <article class="route-card is-disabled has-video" aria-disabled="true">
           <div class="stage-badge" aria-label="Etapa 5">
             <span>Etapa</span>
             <strong>5</strong>
@@ -121,7 +121,7 @@
             </p>
             <div class="card-actions">
               <button class="primary-action" type="button" disabled>Veure etapa</button>
-              <button class="secondary-action" type="button" disabled><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
+              <button class="secondary-action" type="button" data-video-open data-video-src="videos/etapa-5-3d.mp4" data-video-title="Etapa 5 &middot; V&iacute;deo 3D"><span class="play-icon" aria-hidden="true"></span>V&iacute;deo</button>
             </div>
           </div>
         </article>
@@ -135,12 +135,10 @@
           <h2 id="videoTitle">Etapa 1 &middot; V&iacute;deo 3D</h2>
           <button class="video-close" type="button" data-video-close aria-label="Tancar video">&times;</button>
         </div>
-        <video id="stageVideo" controls preload="metadata">
-          <source src="videos/etapa-1-3d.mp4" type="video/mp4" />
-        </video>
+        <video id="stageVideo" controls preload="metadata"></video>
       </section>
     </div>
 
-    <script src="home.js?v=full-hero-1"></script>
+    <script src="home.js?v=stage-videos-1"></script>
   </body>
 </html>

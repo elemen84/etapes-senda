@@ -604,8 +604,10 @@ function setupBottomSheet() {
   let startY = 0;
   let startX = 0;
   let gestureHandled = false;
+  let sheetPointerId = null;
 
   els.sheetHandle.addEventListener("pointerdown", (event) => {
+    sheetPointerId = event.pointerId;
     startY = event.clientY;
     startX = event.clientX;
     gestureHandled = false;
@@ -613,6 +615,8 @@ function setupBottomSheet() {
   });
 
   els.sheetHandle.addEventListener("pointermove", (event) => {
+    if (event.pointerId !== sheetPointerId) return;
+
     const deltaY = event.clientY - startY;
     const deltaX = event.clientX - startX;
     if (gestureHandled || Math.abs(deltaY) < 32 || Math.abs(deltaY) < Math.abs(deltaX)) return;
@@ -622,6 +626,9 @@ function setupBottomSheet() {
   });
 
   els.sheetHandle.addEventListener("pointerup", (event) => {
+    if (event.pointerId !== sheetPointerId) return;
+    sheetPointerId = null;
+
     if (gestureHandled) return;
 
     const deltaY = event.clientY - startY;
@@ -639,6 +646,12 @@ function setupBottomSheet() {
     }
   });
 
+  els.sheetHandle.addEventListener("pointercancel", (event) => {
+    if (event.pointerId !== sheetPointerId) return;
+    sheetPointerId = null;
+    gestureHandled = false;
+  });
+
   els.profilePanel.addEventListener("transitionend", (event) => {
     if (event.propertyName !== "height" || !isProfileExpanded) return;
     scheduleProfileRedraw();
@@ -646,6 +659,8 @@ function setupBottomSheet() {
 }
 
 function setProfileExpanded(expanded) {
+  if (isProfileExpanded === expanded) return;
+
   isProfileExpanded = expanded;
   els.appShell.classList.toggle("sheet-collapsed", !expanded);
   els.profilePanel.classList.toggle("is-collapsed", !expanded);

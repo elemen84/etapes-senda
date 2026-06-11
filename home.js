@@ -1,9 +1,15 @@
 const videoModal = document.querySelector("#videoModal");
 const stageVideo = document.querySelector("#stageVideo");
-const openVideoButton = document.querySelector("[data-video-open]");
+const videoTitle = document.querySelector("#videoTitle");
+const openVideoButtons = document.querySelectorAll("[data-video-open]");
 const closeVideoButtons = document.querySelectorAll("[data-video-close]");
+let lastVideoButton = null;
 
-function openVideoModal() {
+function openVideoModal(button) {
+  lastVideoButton = button;
+  stageVideo.src = button.dataset.videoSrc;
+  videoTitle.textContent = button.dataset.videoTitle;
+  stageVideo.load();
   videoModal.hidden = false;
   document.body.classList.add("has-modal");
   videoModal.querySelector(".video-close").focus();
@@ -11,12 +17,16 @@ function openVideoModal() {
 
 function closeVideoModal() {
   stageVideo.pause();
+  stageVideo.removeAttribute("src");
+  stageVideo.load();
   videoModal.hidden = true;
   document.body.classList.remove("has-modal");
-  openVideoButton.focus();
+  lastVideoButton?.focus();
 }
 
-openVideoButton.addEventListener("click", openVideoModal);
+openVideoButtons.forEach((button) => {
+  button.addEventListener("click", () => openVideoModal(button));
+});
 
 closeVideoButtons.forEach((button) => {
   button.addEventListener("click", closeVideoModal);

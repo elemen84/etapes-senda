@@ -730,6 +730,17 @@ button {
   border-left-color: rgba(23, 63, 37, 0.42);
 }
 
+.route-card.is-disabled.has-video .secondary-action:not(:disabled) {
+  color: #111714;
+  border-color: rgba(15, 23, 19, 0.54);
+  background: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+}
+
+.route-card.is-disabled.has-video .secondary-action:not(:disabled) .play-icon {
+  border-left-color: var(--green);
+}
+
 .video-modal[hidden] {
   display: none;
 }
