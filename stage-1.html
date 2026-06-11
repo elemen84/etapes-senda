@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Etapa 1 &middot; Somport - Arlet</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=stage-header-1" />
+    <link rel="stylesheet" href="styles.css?v=stable-profile-3" />
   </head>
   <body>
     <main class="app-shell" id="appShell">
@@ -37,6 +37,8 @@
             <span class="mountain-icon" aria-hidden="true"></span>
             <strong id="selectedElevation">0 m</strong>
           </div>
+          <button class="measure-button" id="measureButton" type="button" aria-pressed="false">Mesurar tram</button>
+          <strong class="segment-result" id="segmentResult" hidden></strong>
         </div>
         <div class="profile-chart" id="profileInteraction">
           <svg id="profileSvg" role="img" aria-label="Perfil d'altitud de Somport a Arlet"></svg>
@@ -50,6 +52,6 @@
     </main>
 
     <script src="vendor/leaflet/leaflet.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=stable-profile-3"></script>
   </body>
 </html>

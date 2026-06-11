@@ -12,12 +12,16 @@ const TILE_CONFIG = {
 const MAP_MODE_STORAGE_KEY = "camille-stage-1-map-mode";
 const ROUTE_COLOR = "#ff850b";
 const SELECTED_COLOR = "#3c8528";
+const SEGMENT_COLOR = "#173f25";
 const PROFILE_PADDING = { top: 8, right: 4, bottom: 14, left: 4 };
+const MIN_PROFILE_CHART_HEIGHT = 96;
 const RESAMPLE_STEP_KM = 0.05;
 const SMOOTHING_WINDOW = 9;
+const ENDPOINT_HIT_RADIUS_PX = 18;
 
 let map;
 let routeLayer;
+let segmentMapLayer;
 let selectedMarker;
 let userMarker;
 let userAccuracy;
@@ -26,11 +30,21 @@ let processedProfile = [];
 let selectedIndex = 0;
 let profileSvg;
 let profileBox = { width: 0, height: 0 };
+let profileRedrawFrame = null;
 let isProfileExpanded = true;
 let statusTimer = null;
 let activeTileLayer = null;
 let activeMapMode = null;
 let tileProbePoints = [];
+let activeProfilePointerId = null;
+let segmentMeasurement = {
+  active: false,
+  startIndex: null,
+  endIndex: null,
+  dragEndpoint: null,
+  pointerStartX: 0,
+  moved: false,
+};
 
 const els = {
   appShell: document.querySelector("#appShell"),
@@ -42,6 +56,8 @@ const els = {
   sheetHandle: document.querySelector("#sheetHandle"),
   selectedKm: document.querySelector("#selectedKm"),
   selectedElevation: document.querySelector("#selectedElevation"),
+  measureButton: document.querySelector("#measureButton"),
+  segmentResult: document.querySelector("#segmentResult"),
   cursorKm: document.querySelector("#cursorKm"),
   totalKm: document.querySelector("#totalKm"),
   profileInteraction: document.querySelector("#profileInteraction"),
@@ -67,13 +83,14 @@ async function init() {
   drawProfile();
   updateSelection(Math.floor(processedProfile.length / 2), { panMap: false });
   setupBottomSheet();
+  setupSegmentMeasurementControls();
   setupProfileInteraction();
+  setupProfileResizeObserver();
   setupGeolocation();
 
   window.addEventListener("resize", () => {
     if (!isProfileExpanded) return;
-    drawProfile();
-    updateSelection(selectedIndex, { panMap: false });
+    scheduleProfileRedraw();
   });
 }
 
@@ -413,7 +430,7 @@ function drawProfile() {
   const rect = els.profileInteraction.getBoundingClientRect();
   profileBox = {
     width: Math.max(280, Math.round(rect.width)),
-    height: Math.max(72, Math.round(rect.height)),
+    height: getDrawableProfileHeight(rect.height),
   };
 
   profileSvg.setAttribute("viewBox", `0 0 ${profileBox.width} ${profileBox.height}`);
@@ -464,6 +481,7 @@ function drawProfile() {
       "stroke-linecap": "round",
       "stroke-linejoin": "round",
     }),
+    svgElement("g", { id: "profileSegmentOverlay" }),
     svgElement("circle", {
       id: "profileCursorDot",
       r: "8",
@@ -472,6 +490,7 @@ function drawProfile() {
       "stroke-width": "4",
     }),
   );
+  updateSegmentMeasurementDisplay();
 }
 
 function buildProfilePath(minElevation, maxElevation, closeArea) {
@@ -498,14 +517,86 @@ function buildProfilePath(minElevation, maxElevation, closeArea) {
   return commands.join(" ");
 }
 
+function getDrawableProfileHeight(measuredHeight) {
+  const roundedHeight = Math.round(measuredHeight);
+  if (roundedHeight >= MIN_PROFILE_CHART_HEIGHT) {
+    return roundedHeight;
+  }
+
+  if (profileBox.height >= MIN_PROFILE_CHART_HEIGHT) {
+    return profileBox.height;
+  }
+
+  return MIN_PROFILE_CHART_HEIGHT;
+}
+
+function setupProfileResizeObserver() {
+  if (!("ResizeObserver" in window)) return;
+
+  const observer = new ResizeObserver(() => {
+    if (!isProfileExpanded || !processedProfile.length) return;
+    scheduleProfileRedraw();
+  });
+  observer.observe(els.profileInteraction);
+}
+
+function scheduleProfileRedraw() {
+  if (profileRedrawFrame !== null) {
+    cancelAnimationFrame(profileRedrawFrame);
+  }
+
+  profileRedrawFrame = requestAnimationFrame(() => {
+    profileRedrawFrame = null;
+    if (!isProfileExpanded || !processedProfile.length) return;
+    drawProfile();
+    updateSelection(selectedIndex, { panMap: false });
+  });
+}
+
+function setupSegmentMeasurementControls() {
+  els.measureButton.addEventListener("click", () => {
+    if (segmentMeasurement.active) {
+      clearSegmentMeasurement();
+      return;
+    }
+
+    segmentMeasurement.active = true;
+    segmentMeasurement.startIndex = null;
+    segmentMeasurement.endIndex = null;
+    segmentMeasurement.dragEndpoint = null;
+    segmentMeasurement.moved = false;
+    updateSegmentMeasurementDisplay();
+  });
+}
+
 function setupProfileInteraction() {
   els.profileInteraction.addEventListener("pointerdown", (event) => {
     els.profileInteraction.setPointerCapture(event.pointerId);
+    activeProfilePointerId = event.pointerId;
+    if (segmentMeasurement.active) {
+      handleSegmentPointerDown(event);
+      return;
+    }
     handleProfilePointer(event);
   });
   els.profileInteraction.addEventListener("pointermove", (event) => {
-    if (event.buttons !== 1 && event.pointerType !== "touch") return;
+    if (event.pointerId !== activeProfilePointerId) return;
+    if (segmentMeasurement.active) {
+      handleSegmentPointerMove(event);
+      return;
+    }
     handleProfilePointer(event);
+  });
+  els.profileInteraction.addEventListener("pointerup", (event) => {
+    if (event.pointerId !== activeProfilePointerId) return;
+    activeProfilePointerId = null;
+    if (segmentMeasurement.active) {
+      handleSegmentPointerUp(event);
+    }
+  });
+  els.profileInteraction.addEventListener("pointercancel", () => {
+    activeProfilePointerId = null;
+    segmentMeasurement.dragEndpoint = null;
   });
 }
 
@@ -547,6 +638,11 @@ function setupBottomSheet() {
       setProfileExpanded(true);
     }
   });
+
+  els.profilePanel.addEventListener("transitionend", (event) => {
+    if (event.propertyName !== "height" || !isProfileExpanded) return;
+    scheduleProfileRedraw();
+  });
 }
 
 function setProfileExpanded(expanded) {
@@ -556,20 +652,106 @@ function setProfileExpanded(expanded) {
   els.sheetHandle.setAttribute("aria-expanded", String(expanded));
 
   if (expanded) {
-    requestAnimationFrame(() => {
-      drawProfile();
-      updateSelection(selectedIndex, { panMap: false });
-    });
+    scheduleProfileRedraw();
   }
 }
 
 function handleProfilePointer(event) {
   event.preventDefault();
+  updateSelection(getProfileIndexFromPointer(event), { panMap: true });
+}
+
+function handleSegmentPointerDown(event) {
+  event.preventDefault();
+  const index = getProfileIndexFromPointer(event);
+  segmentMeasurement.pointerStartX = event.clientX;
+  segmentMeasurement.moved = false;
+
+  if (segmentMeasurement.startIndex === null) {
+    segmentMeasurement.startIndex = index;
+    segmentMeasurement.endIndex = null;
+    segmentMeasurement.dragEndpoint = "end";
+    updateSelection(index, { panMap: true });
+    updateSegmentMeasurementDisplay();
+    return;
+  }
+
+  if (segmentMeasurement.endIndex === null) {
+    segmentMeasurement.endIndex = index;
+    segmentMeasurement.dragEndpoint = "end";
+    updateSelection(index, { panMap: true });
+    updateSegmentMeasurementDisplay();
+    return;
+  }
+
+  const nearestEndpoint = getNearestSegmentEndpoint(index);
+  if (!nearestEndpoint) {
+    segmentMeasurement.dragEndpoint = null;
+    handleProfilePointer(event);
+    return;
+  }
+
+  segmentMeasurement.dragEndpoint = nearestEndpoint;
+  updateSelection(index, { panMap: true });
+  updateSegmentMeasurementDisplay();
+}
+
+function handleSegmentPointerMove(event) {
+  if (!segmentMeasurement.dragEndpoint) return;
+  event.preventDefault();
+
+  const index = getProfileIndexFromPointer(event);
+  if (Math.abs(event.clientX - segmentMeasurement.pointerStartX) > 3) {
+    segmentMeasurement.moved = true;
+  }
+
+  if (segmentMeasurement.dragEndpoint === "start") {
+    segmentMeasurement.startIndex = index;
+  } else {
+    segmentMeasurement.endIndex = index;
+  }
+
+  updateSelection(index, { panMap: true });
+  updateSegmentMeasurementDisplay();
+}
+
+function handleSegmentPointerUp(event) {
+  if (!segmentMeasurement.dragEndpoint) return;
+  event.preventDefault();
+
+  const index = getProfileIndexFromPointer(event);
+  if (segmentMeasurement.dragEndpoint === "end" && segmentMeasurement.endIndex === null && segmentMeasurement.moved) {
+    segmentMeasurement.endIndex = index;
+  }
+
+  if (segmentMeasurement.endIndex !== null) {
+    updateSelection(index, { panMap: true });
+  }
+
+  segmentMeasurement.dragEndpoint = null;
+  updateSegmentMeasurementDisplay();
+}
+
+function getProfileIndexFromPointer(event) {
   const rect = els.profileInteraction.getBoundingClientRect();
   const x = Math.min(Math.max(event.clientX - rect.left, PROFILE_PADDING.left), rect.width - PROFILE_PADDING.right);
   const ratio = (x - PROFILE_PADDING.left) / (rect.width - PROFILE_PADDING.left - PROFILE_PADDING.right);
-  const index = Math.round(ratio * (processedProfile.length - 1));
-  updateSelection(index, { panMap: true });
+  return Math.round(ratio * (processedProfile.length - 1));
+}
+
+function getNearestSegmentEndpoint(index) {
+  const { startIndex, endIndex } = segmentMeasurement;
+  if (startIndex === null || endIndex === null) return null;
+
+  const scale = getProfileScale();
+  const pointerX = profilePointCoords(processedProfile[index], scale).x;
+  const startX = profilePointCoords(processedProfile[startIndex], scale).x;
+  const endX = profilePointCoords(processedProfile[endIndex], scale).x;
+  const startDistance = Math.abs(pointerX - startX);
+  const endDistance = Math.abs(pointerX - endX);
+
+  if (Math.min(startDistance, endDistance) > ENDPOINT_HIT_RADIUS_PX) return null;
+  return startDistance <= endDistance ? "start" : "end";
 }
 
 function updateSelection(index, options = { panMap: true }) {
@@ -590,20 +772,205 @@ function updateSelection(index, options = { panMap: true }) {
 }
 
 function updateProfileCursor(point) {
-  const minElevation = Math.floor(Math.min(...processedProfile.map((p) => p.smoothed_elevation_m)) / 100) * 100;
-  const maxElevation = Math.ceil(Math.max(...processedProfile.map((p) => p.smoothed_elevation_m)) / 100) * 100;
-  const totalKm = processedProfile[processedProfile.length - 1].distance_km;
-  const usableWidth = profileBox.width - PROFILE_PADDING.left - PROFILE_PADDING.right;
-  const usableHeight = profileBox.height - PROFILE_PADDING.top - PROFILE_PADDING.bottom;
-  const x = PROFILE_PADDING.left + (point.distance_km / totalKm) * usableWidth;
-  const y =
-    PROFILE_PADDING.top +
-    (1 - (point.smoothed_elevation_m - minElevation) / (maxElevation - minElevation)) * usableHeight;
+  const { x, y } = profilePointCoords(point, getProfileScale());
 
   const dot = profileSvg.querySelector("#profileCursorDot");
   if (!dot) return;
   dot.setAttribute("cx", x);
   dot.setAttribute("cy", y);
+}
+
+function updateSegmentMeasurementDisplay() {
+  const hasStart = segmentMeasurement.startIndex !== null;
+  const hasEnd = segmentMeasurement.endIndex !== null;
+  const hasSegment = hasStart && hasEnd;
+
+  els.profilePanel.classList.toggle("is-measuring", segmentMeasurement.active);
+  els.measureButton.classList.toggle("is-active", segmentMeasurement.active);
+  els.measureButton.setAttribute("aria-pressed", String(segmentMeasurement.active));
+  els.segmentResult.hidden = !segmentMeasurement.active;
+
+  if (!segmentMeasurement.active) {
+    els.segmentResult.textContent = "";
+  } else if (!hasStart) {
+    els.segmentResult.textContent = "Tria A";
+  } else if (!hasEnd) {
+    els.segmentResult.textContent = "Tria B";
+  } else {
+    const metrics = calculateSegmentMetrics(segmentMeasurement.startIndex, segmentMeasurement.endIndex);
+    els.segmentResult.textContent =
+      `${formatKm(metrics.distanceKm)} · +${formatMeters(metrics.positiveGainM)} · -${formatMeters(metrics.negativeLossM)} · ${formatSignedMeters(metrics.netElevationM)}`;
+  }
+
+  drawSegmentProfileOverlay();
+  drawSegmentMapOverlay(hasSegment);
+}
+
+function drawSegmentProfileOverlay() {
+  const overlay = profileSvg.querySelector("#profileSegmentOverlay");
+  if (!overlay) return;
+
+  overlay.innerHTML = "";
+  if (!segmentMeasurement.active || segmentMeasurement.startIndex === null) return;
+
+  const scale = getProfileScale();
+  const startIndex = segmentMeasurement.startIndex;
+  const endIndex = segmentMeasurement.endIndex ?? segmentMeasurement.startIndex;
+  const [rangeStart, rangeEnd] = normalizeIndexRange(startIndex, endIndex);
+  const startCoords = profilePointCoords(processedProfile[startIndex], scale);
+  const endCoords = profilePointCoords(processedProfile[endIndex], scale);
+  const highlightPath = buildProfileLinePathForRange(rangeStart, rangeEnd, scale);
+  const rangeLeft = Math.min(startCoords.x, endCoords.x);
+  const rangeWidth = Math.max(Math.abs(endCoords.x - startCoords.x), 2);
+  const plotTop = PROFILE_PADDING.top;
+  const plotBottom = profileBox.height - PROFILE_PADDING.bottom;
+
+  overlay.append(svgElement("rect", {
+    x: rangeLeft,
+    y: plotTop,
+    width: rangeWidth,
+    height: plotBottom - plotTop,
+    fill: SELECTED_COLOR,
+    "fill-opacity": "0.08",
+  }));
+
+  if (highlightPath) {
+    overlay.append(svgElement("path", {
+      d: highlightPath,
+      fill: "none",
+      stroke: SEGMENT_COLOR,
+      "stroke-width": "4.5",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+    }));
+  }
+
+  appendSegmentMarker(overlay, startCoords, "A", plotTop, plotBottom);
+  if (segmentMeasurement.endIndex !== null) {
+    appendSegmentMarker(overlay, endCoords, "B", plotTop, plotBottom);
+  }
+}
+
+function appendSegmentMarker(overlay, coords, label, plotTop, plotBottom) {
+  overlay.append(svgElement("line", {
+    x1: coords.x,
+    y1: plotTop,
+    x2: coords.x,
+    y2: plotBottom,
+    stroke: SEGMENT_COLOR,
+    "stroke-width": "1.6",
+    "stroke-dasharray": "3 4",
+  }));
+  overlay.append(svgElement("circle", {
+    cx: coords.x,
+    cy: coords.y,
+    r: "5.5",
+    fill: "#ffffff",
+    stroke: SEGMENT_COLOR,
+    "stroke-width": "2.5",
+  }));
+  const labelElement = svgElement("text", {
+    x: coords.x,
+    y: Math.max(12, coords.y - 11),
+    fill: SEGMENT_COLOR,
+    "font-size": "10",
+    "font-weight": "800",
+    "text-anchor": "middle",
+  });
+  labelElement.textContent = label;
+  overlay.append(labelElement);
+}
+
+function drawSegmentMapOverlay(hasSegment) {
+  if (segmentMapLayer) {
+    map.removeLayer(segmentMapLayer);
+    segmentMapLayer = null;
+  }
+  if (!hasSegment) return;
+
+  const [start, end] = normalizeIndexRange(segmentMeasurement.startIndex, segmentMeasurement.endIndex);
+  if (start === end) return;
+
+  const latLngs = processedProfile.slice(start, end + 1).map((point) => [point.lat, point.lon]);
+  segmentMapLayer = L.polyline(latLngs, {
+    color: SELECTED_COLOR,
+    weight: 8,
+    opacity: 0.72,
+    lineCap: "round",
+    lineJoin: "round",
+    interactive: false,
+  }).addTo(map);
+}
+
+function clearSegmentMeasurement() {
+  segmentMeasurement.active = false;
+  segmentMeasurement.startIndex = null;
+  segmentMeasurement.endIndex = null;
+  segmentMeasurement.dragEndpoint = null;
+  segmentMeasurement.moved = false;
+  updateSegmentMeasurementDisplay();
+}
+
+function calculateSegmentMetrics(startIndex, endIndex) {
+  const [start, end] = normalizeIndexRange(startIndex, endIndex);
+  const distanceKm = processedProfile[end].distance_km - processedProfile[start].distance_km;
+  let positiveGainM = 0;
+  let negativeLossM = 0;
+
+  for (let i = start + 1; i <= end; i += 1) {
+    const difference = processedProfile[i].smoothed_elevation_m - processedProfile[i - 1].smoothed_elevation_m;
+    if (difference > 0) {
+      positiveGainM += difference;
+    } else {
+      negativeLossM += Math.abs(difference);
+    }
+  }
+
+  return {
+    distanceKm,
+    positiveGainM,
+    negativeLossM,
+    netElevationM: positiveGainM - negativeLossM,
+  };
+}
+
+function normalizeIndexRange(startIndex, endIndex) {
+  return [
+    Math.min(startIndex, endIndex),
+    Math.max(startIndex, endIndex),
+  ];
+}
+
+function buildProfileLinePathForRange(startIndex, endIndex, scale) {
+  return processedProfile
+    .slice(startIndex, endIndex + 1)
+    .map((point, offset) => {
+      const { x, y } = profilePointCoords(point, scale);
+      return `${offset === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+function getProfileScale() {
+  const minElevation = Math.floor(Math.min(...processedProfile.map((p) => p.smoothed_elevation_m)) / 100) * 100;
+  const maxElevation = Math.ceil(Math.max(...processedProfile.map((p) => p.smoothed_elevation_m)) / 100) * 100;
+  return {
+    minElevation,
+    maxElevation,
+    totalKm: processedProfile[processedProfile.length - 1].distance_km,
+    usableWidth: profileBox.width - PROFILE_PADDING.left - PROFILE_PADDING.right,
+    usableHeight: profileBox.height - PROFILE_PADDING.top - PROFILE_PADDING.bottom,
+  };
+}
+
+function profilePointCoords(point, scale) {
+  return {
+    x: PROFILE_PADDING.left + (point.distance_km / scale.totalKm) * scale.usableWidth,
+    y:
+      PROFILE_PADDING.top +
+      (1 - (point.smoothed_elevation_m - scale.minElevation) / (scale.maxElevation - scale.minElevation)) *
+        scale.usableHeight,
+  };
 }
 
 function setupGeolocation() {
@@ -680,4 +1047,14 @@ function svgElement(name, attributes = {}) {
 
 function formatKm(value) {
   return `${value.toLocaleString("ca-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+}
+
+function formatMeters(value) {
+  return `${Math.round(value).toLocaleString("ca-ES")} m`;
+}
+
+function formatSignedMeters(value) {
+  const roundedValue = Math.round(value);
+  const sign = roundedValue >= 0 ? "+" : "-";
+  return `${sign}${Math.abs(roundedValue).toLocaleString("ca-ES")} m`;
 }
