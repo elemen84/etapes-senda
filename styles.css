@@ -314,6 +314,10 @@ button {
   background: #f2f5ee;
 }
 
+.segment-result[hidden] {
+  display: none;
+}
+
 .profile-panel.is-measuring .selected-stats {
   gap: 6px;
 }
@@ -906,8 +910,8 @@ button {
 .selected-marker {
   width: 18px;
   height: 18px;
-  border: 4px solid #fff;
-  background: var(--orange);
+  border: 4px solid #3c8528;
+  background: #fff;
 }
 
 .user-dot {

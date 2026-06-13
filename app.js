@@ -881,7 +881,7 @@ function updateSegmentMeasurementDisplay() {
   } else {
     const metrics = calculateSegmentMetrics(segmentMeasurement.startIndex, segmentMeasurement.endIndex);
     els.segmentResult.textContent =
-      `${formatKm(metrics.distanceKm)} · +${formatMeters(metrics.positiveGainM)} · -${formatMeters(metrics.negativeLossM)} · ${formatSignedMeters(metrics.netElevationM)}`;
+      `${formatKm(metrics.distanceKm)} · +${formatMeters(metrics.positiveGainM)} · -${formatMeters(metrics.negativeLossM)} · Balanç ${formatSignedMeters(metrics.netElevationM)}`;
   }
 
   drawSegmentProfileOverlay();
