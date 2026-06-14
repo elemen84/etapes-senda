@@ -20,7 +20,7 @@ const STAGE_CONFIGS = {
     startName: "Arlet",
     finishName: "Selva de Oza",
     gpxUrl: "gpx/ETAPA 2 ARLET-SELVA DE OZA TRK.gpx",
-    localTiles: [],
+    localTiles: ["/tiles/etapa-2/{z}/{x}/{y}.png"],
   },
   "3": {
     id: "3",
@@ -31,7 +31,7 @@ const STAGE_CONFIGS = {
     startName: "Selva de Oza",
     finishName: "Gabardito",
     gpxUrl: "gpx/ETAPA 3 OZA - GABARDITO TRK.gpx",
-    localTiles: [],
+    localTiles: ["/tiles/etapa-3/{z}/{x}/{y}.png"],
   },
   "4": {
     id: "4",
@@ -42,7 +42,7 @@ const STAGE_CONFIGS = {
     startName: "Gabardito",
     finishName: "Lizara",
     gpxUrl: "gpx/ETAPA 4 GABARDITO - LIZARA TRK.gpx",
-    localTiles: [],
+    localTiles: ["/tiles/etapa-4/{z}/{x}/{y}.png"],
   },
   "5": {
     id: "5",
@@ -53,7 +53,7 @@ const STAGE_CONFIGS = {
     startName: "Lizara",
     finishName: "Somport",
     gpxUrl: "gpx/ETAPA 5 LIZARA - SOMPORT TRK.gpx",
-    localTiles: [],
+    localTiles: ["/tiles/etapa-5/{z}/{x}/{y}.png"],
   },
 };
 
