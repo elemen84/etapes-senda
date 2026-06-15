@@ -37,3 +37,23 @@ document.addEventListener("keydown", (event) => {
     closeVideoModal();
   }
 });
+
+videoModal.addEventListener("keydown", (event) => {
+  if (event.key !== "Tab" || videoModal.hidden) return;
+
+  const focusables = [...videoModal.querySelectorAll("button, video, [href]")].filter(
+    (el) => !el.hidden && el.offsetParent !== null,
+  );
+  if (!focusables.length) return;
+
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});

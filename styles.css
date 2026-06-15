@@ -416,7 +416,7 @@ button {
   height: 100%;
   min-height: 100%;
   overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-y: auto;
   color: #152116;
   background:
     linear-gradient(180deg, rgba(248, 245, 237, 0.96), rgba(238, 233, 222, 0.98)),
@@ -429,12 +429,11 @@ button {
 
 .home-shell {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(auto, 1fr);
   width: 100%;
-  height: 100dvh;
+  min-height: 100dvh;
   max-width: 390px;
   margin: 0 auto;
-  overflow: hidden;
   background: #f8f5ee;
   box-shadow: 0 16px 46px rgba(35, 38, 28, 0.1);
 }
@@ -535,7 +534,7 @@ button {
 .stage-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(82px, 1fr));
   gap: 5px;
   min-height: 0;
   padding: 7px 10px calc(15px + env(safe-area-inset-bottom));
@@ -642,8 +641,8 @@ button {
   min-width: 0;
   margin: 0 0 4px;
   color: #2f3730;
-  font-size: 0.61rem;
-  line-height: 1.08;
+  font-size: 0.72rem;
+  line-height: 1.15;
   overflow-wrap: anywhere;
 }
 
@@ -696,10 +695,21 @@ button {
 }
 
 .secondary-action {
+  position: relative;
+  z-index: 1;
   gap: 7px;
   color: #111714;
   border: 1px solid rgba(15, 23, 19, 0.54);
   background: rgba(255, 255, 255, 0.82);
+}
+
+/* Make the whole card body navigate to the stage (stretched link).
+   The video button is raised above this overlay so it stays clickable. */
+.primary-action::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: "";
 }
 
 .play-icon {
@@ -850,7 +860,7 @@ button {
 
   .route-meta {
     gap: 4px 6px;
-    font-size: 0.55rem;
+    font-size: 0.66rem;
   }
 
   .card-actions {

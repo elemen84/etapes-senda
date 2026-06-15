@@ -20,7 +20,7 @@ const STAGE_CONFIGS = {
     startName: "Arlet",
     finishName: "Selva de Oza",
     gpxUrl: "gpx/ETAPA 2 ARLET-SELVA DE OZA TRK.gpx",
-    localTiles: ["/tiles/etapa-2/{z}/{x}/{y}.png"],
+    localTiles: ["tiles/etapa-2/{z}/{x}/{y}.png"],
   },
   "3": {
     id: "3",
@@ -31,7 +31,7 @@ const STAGE_CONFIGS = {
     startName: "Selva de Oza",
     finishName: "Gabardito",
     gpxUrl: "gpx/ETAPA 3 OZA - GABARDITO TRK.gpx",
-    localTiles: ["/tiles/etapa-3/{z}/{x}/{y}.png"],
+    localTiles: ["tiles/etapa-3/{z}/{x}/{y}.png"],
   },
   "4": {
     id: "4",
@@ -42,7 +42,7 @@ const STAGE_CONFIGS = {
     startName: "Gabardito",
     finishName: "Lizara",
     gpxUrl: "gpx/ETAPA 4 GABARDITO - LIZARA TRK.gpx",
-    localTiles: ["/tiles/etapa-4/{z}/{x}/{y}.png"],
+    localTiles: ["tiles/etapa-4/{z}/{x}/{y}.png"],
   },
   "5": {
     id: "5",
@@ -53,7 +53,7 @@ const STAGE_CONFIGS = {
     startName: "Lizara",
     finishName: "Somport",
     gpxUrl: "gpx/ETAPA 5 LIZARA - SOMPORT TRK.gpx",
-    localTiles: ["/tiles/etapa-5/{z}/{x}/{y}.png"],
+    localTiles: ["tiles/etapa-5/{z}/{x}/{y}.png"],
   },
 };
 
@@ -238,6 +238,7 @@ async function activateOfflineTiles(points) {
       minZoom: 10,
       minNativeZoom: 12,
       maxNativeZoom: 16,
+      bounds: routeLayer ? routeLayer.getBounds().pad(0.12) : undefined,
       attribution: `Tiles locals Etapa ${stageConfig.id}`,
       errorTileUrl: TILE_CONFIG.transparentTile,
     }),
@@ -1057,7 +1058,7 @@ function profilePointCoords(point, scale) {
 
 function setupGeolocation() {
   if (!("geolocation" in navigator)) {
-    showStatus("Ubicacio no disponible");
+    showStatus("Ubicació no disponible");
     return;
   }
 
@@ -1069,7 +1070,7 @@ function setupGeolocation() {
     },
     (error) => {
       const denied = error && error.code === error.PERMISSION_DENIED;
-      showStatus(denied ? "Permis d'ubicacio denegat" : "Ubicacio no disponible");
+      showStatus(denied ? "Permís d'ubicació denegat" : "Ubicació no disponible");
     },
     {
       enableHighAccuracy: true,
