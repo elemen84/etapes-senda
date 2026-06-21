@@ -378,12 +378,9 @@ button {
 }
 
 .profile-axis {
-  display: grid;
-  flex: 0 0 auto;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  color: var(--muted);
-  font-size: 0.82rem;
+  /* Fila inferior de km (0 km / km actual / km total) ocultada:
+     el perfil naranja gana esa altura vía .profile-chart (flex: 1 1 auto). */
+  display: none;
 }
 
 .profile-axis strong {
