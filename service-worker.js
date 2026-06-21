@@ -6,7 +6,7 @@
  * sota acció de l'usuari, en una fase posterior.
  */
 
-const CACHE_VERSION = "camille-pwa-v1";
+const CACHE_VERSION = "camille-pwa-v2";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-app-shell`;
 const HTML_TIMEOUT_MS = 3000;
 
@@ -27,6 +27,7 @@ const APP_SHELL = [
   "app.js?v=audit-1",
   "home.js?v=audit-1",
   "register-sw.js?v=audit-1",
+  "offline-tiles.js?v=phase2",
   "manifest.webmanifest",
   "assets/mountain-logo-transparent.png",
   "assets/hero-mountain.jpg",
@@ -46,6 +47,11 @@ const APP_SHELL = [
   "gpx/ETAPA%203%20OZA%20-%20GABARDITO%20TRK.gpx",
   "gpx/ETAPA%204%20GABARDITO%20-%20LIZARA%20TRK.gpx",
   "gpx/ETAPA%205%20LIZARA%20-%20SOMPORT%20TRK.gpx",
+  "tiles/etapa-1/tiles-manifest.json",
+  "tiles/etapa-2/tiles-manifest.json",
+  "tiles/etapa-3/tiles-manifest.json",
+  "tiles/etapa-4/tiles-manifest.json",
+  "tiles/etapa-5/tiles-manifest.json",
 ];
 
 /* INSTALL — precache resilient: un recurs caigut NO trenca la instal·lació. */

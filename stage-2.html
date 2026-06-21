@@ -28,6 +28,18 @@
         <button class="locate-button" id="locateButton" type="button" aria-label="Centrar en la meva ubicació">
           <span aria-hidden="true"></span>
         </button>
+        <div class="offline-prep" id="offlinePrep" data-state="idle">
+          <button
+            class="offline-prep-button"
+            id="prepareOfflineButton"
+            type="button"
+            title="A iOS/Safari l'emmagatzematge offline pot caducar; prepara l'etapa abans de sortir."
+          >
+            <span class="offline-prep-dot" aria-hidden="true"></span>
+            <span class="offline-prep-text" id="offlinePrepText">Preparar offline</span>
+          </button>
+          <span class="offline-prep-bar" aria-hidden="true"><span class="offline-prep-bar-fill" id="offlineBarFill"></span></span>
+        </div>
       </section>
 
       <section class="profile-panel" id="profilePanel" aria-label="Perfil d'altitud">
@@ -58,5 +70,6 @@
     <script src="vendor/leaflet/leaflet.js"></script>
     <script src="app.js?v=audit-1"></script>
     <script src="register-sw.js?v=audit-1"></script>
+    <script src="offline-tiles.js?v=phase2"></script>
   </body>
 </html>
