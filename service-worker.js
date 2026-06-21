@@ -6,7 +6,7 @@
  * sota acció de l'usuari, en una fase posterior.
  */
 
-const CACHE_VERSION = "camille-pwa-v2";
+const CACHE_VERSION = "camille-pwa-v3";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-app-shell`;
 const HTML_TIMEOUT_MS = 3000;
 
@@ -113,7 +113,12 @@ self.addEventListener("fetch", (event) => {
   // Tiles: MAI es precachegen en aquesta fase. Cache-first passthrough:
   // serveix si ja existeix a alguna caché, si no va a xarxa, però no desa res.
   if (url.pathname.includes("/tiles/")) {
-    event.respondWith(caches.match(request).then((hit) => hit || fetch(request)));
+    // ignoreSearch: el sondeig d'app.js afegeix ?probe=<timestamp> a la URL del
+    // tile. Sense ignoreSearch, caches.match no trobaria el tile cachejat (desat
+    // sense query) i la capa offline no s'activaria mai. No cacheja res de nou.
+    event.respondWith(
+      caches.match(request, { ignoreSearch: true }).then((hit) => hit || fetch(request)),
+    );
     return;
   }
 
